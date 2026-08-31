@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SRR Hibernation Tracker | ဆောင်းခိုအိပ်စက်ခြင်း</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Myanmar:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --blue:#1877f2; --blue-dark:#145dbf; --blue-light:#e7f0fe;
+  --bg:#f0f2f5; --card:#ffffff; --text:#050505; --text2:#65676b;
+  --border:#dddfe2; --green:#42b72a; --green-bg:#e8f7e4;
+  --red:#fa383e; --red-bg:#feeaea; --orange:#f7b928; --orange-bg:#fff6e0;
+  --purple:#7c5cff; --purple-bg:#f0ecff; --gray-bg:#f5f6f7;
+  --radius:10px; --shadow:0 1px 2px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{ font-family:'Inter','Noto Sans Myanmar',sans-serif; background:var(--bg); color:var(--text); padding-bottom:76px; -webkit-tap-highlight-color:transparent; }
+.my{font-family:'Noto Sans Myanmar','Inter',sans-serif;}
+a{color:inherit; text-decoration:none;}
+button{font-family:inherit; cursor:pointer;}
+
+.topbar{ position:sticky; top:0; z-index:50; background:var(--blue); color:#fff; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; box-shadow:var(--shadow); }
+.topbar-title{display:flex; flex-direction:column; line-height:1.25;}
+.topbar-title .en{font-weight:800; font-size:17px;}
+.topbar-title .my{font-size:12px; opacity:.9;}
+.sync-pill{ display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.18); padding:5px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+.sync-dot{width:8px; height:8px; border-radius:50%; background:#8ef58e;}
+.sync-dot.syncing{background:#ffe17a; animation:pulse 1s infinite;}
+.sync-dot.offline{background:#ff9b9b;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+.tabs{ position:sticky; top:52px; z-index:49; display:flex; background:#fff; border-bottom:1px solid var(--border); overflow-x:auto; }
+.tab-btn{ flex:1; min-width:80px; padding:11px 6px; text-align:center; background:none; border:none; font-size:12.5px; font-weight:600; color:var(--text2); border-bottom:3px solid transparent; display:flex; flex-direction:column; align-items:center; gap:2px; }
+.tab-btn .my{font-size:10.5px; font-weight:500;}
+.tab-btn.active{color:var(--blue); border-bottom-color:var(--blue);}
+.tab-btn svg{width:20px; height:20px;}
+
+main{max-width:900px; margin:0 auto; padding:12px;}
+.tabpanel{display:none;}
+.tabpanel.active{display:block; animation:fade .15s ease;}
+@keyframes fade{from{opacity:0} to{opacity:1}}
+
+.card{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px; margin-bottom:12px;}
+.section-title{font-size:15px; font-weight:800; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:8px;}
+.section-title .my{font-weight:600; font-size:12px; color:var(--text2);}
+.muted{color:var(--text2); font-size:12.5px;}
+
+.stat-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:12px;}
+@media(min-width:560px){.stat-grid{grid-template-columns:repeat(4,1fr);}}
+.stat-card{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px; text-align:center;}
+.stat-card .num{font-size:24px; font-weight:800; color:var(--blue);}
+.stat-card .lbl{font-size:11px; color:var(--text2); font-weight:600; margin-top:2px;}
+.stat-card .lbl .my{display:block; font-size:10px;}
+
+.species-tabs{display:flex; gap:6px; margin-bottom:10px; overflow-x:auto;}
+.species-tab{ padding:9px 14px; border-radius:20px; background:#fff; border:1.5px solid var(--border); font-size:12.5px; font-weight:700; white-space:nowrap; color:var(--text2); }
+.species-tab.active{background:var(--blue); color:#fff; border-color:var(--blue);}
+.species-tab .my{display:block; font-weight:500; font-size:10px;}
+
+.filter-chips{display:flex; gap:6px; overflow-x:auto; margin-bottom:10px;}
+.filter-chip{ padding:6px 12px; border-radius:20px; background:#fff; border:1px solid var(--border); font-size:12px; font-weight:600; white-space:nowrap; color:var(--text2); }
+.filter-chip.active{background:var(--blue); color:#fff; border-color:var(--blue);}
+
+.list-item{ background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:12px 14px; margin-bottom:9px; cursor:pointer; }
+.li-top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+.li-title{font-weight:700; font-size:14.5px;}
+.li-sub{font-size:12px; color:var(--text2); margin-top:2px;}
+.badge{ display:inline-block; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+.badge.ongoing{background:var(--blue-light); color:var(--blue);}
+.badge.done{background:var(--green-bg); color:var(--green);}
+.badge.none{background:var(--gray-bg); color:var(--text2);}
+.badge.overdue{background:var(--red-bg); color:var(--red);}
+.li-meta{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+.chip{background:var(--gray-bg); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--text2); font-weight:600;}
+.chip.male{background:var(--blue-light); color:var(--blue-dark);}
+.chip.female{background:var(--purple-bg); color:var(--purple);}
+
+.btn{ display:inline-flex; align-items:center; justify-content:center; gap:6px; border:none; border-radius:8px; padding:10px 16px; font-weight:700; font-size:13.5px; }
+.btn-primary{background:var(--blue); color:#fff;}
+.btn-secondary{background:var(--gray-bg); color:var(--text);}
+.btn-danger{background:var(--red-bg); color:var(--red);}
+.btn-block{width:100%;}
+.btn-sm{padding:7px 12px; font-size:12.5px;}
+
+input[type=text], input[type=number], input[type=date], select, textarea{ width:100%; padding:10px 11px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; background:#fff; color:var(--text); }
+label{display:block; font-size:12px; font-weight:700; color:var(--text2); margin-bottom:5px; margin-top:12px;}
+label .my{font-weight:500; font-size:11px;}
+label:first-of-type{margin-top:0;}
+.form-grid{display:grid; grid-template-columns:1fr 1fr; gap:0 10px;}
+.form-grid .full{grid-column:1/-1;}
+.hint{font-size:10.5px; color:var(--text2); margin-top:3px;}
+fieldset{border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-top:14px;}
+legend{font-size:12.5px; font-weight:800; color:var(--blue); padding:0 6px;}
+
+.modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:100; display:flex; align-items:flex-end; justify-content:center; }
+@media(min-width:640px){.modal-overlay{align-items:center;}}
+.modal{ background:#fff; width:100%; max-width:560px; max-height:92vh; overflow-y:auto; border-radius:16px 16px 0 0; padding:0; }
+@media(min-width:640px){.modal{border-radius:14px;}}
+.modal-head{ position:sticky; top:0; background:#fff; z-index:2; padding:14px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.modal-head h3{font-size:16px; font-weight:800;}
+.modal-head .my{font-size:11.5px; color:var(--text2); font-weight:500;}
+.modal-close{background:var(--gray-bg); border:none; width:30px; height:30px; border-radius:50%; font-size:16px; color:var(--text2);}
+.modal-body{padding:14px 16px 20px;}
+.modal-foot{padding:12px 16px 18px; display:flex; gap:8px; border-top:1px solid var(--border);}
+
+.report-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.report-row:last-child{border-bottom:none;}
+.report-row .rg{font-weight:700;}
+.report-row .rd{color:var(--text2); font-size:12px;}
+.empty-state{text-align:center; padding:30px 10px; color:var(--text2);}
+
+.weeks-box{background:var(--gray-bg); border-radius:8px; padding:10px 12px; margin-top:8px;}
+.weeks-box .wb-row{display:flex; justify-content:space-between; align-items:center; font-size:12.5px; padding:4px 0;}
+.weeks-box .wb-num{font-weight:800; color:var(--blue); font-size:15px;}
+
+#toast{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px); background:#1c1e21; color:#fff; padding:10px 18px; border-radius:24px; font-size:13px; font-weight:600; opacity:0; transition:.25s; z-index:200; pointer-events:none; white-space:nowrap; }
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+::-webkit-scrollbar{height:0; width:0;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">
+    <span class="en">❄️ SRR Hibernation Tracker</span>
+    <span class="my">ဆောင်းခိုအိပ်စက်ခြင်း စောင့်ကြည့်စနစ်</span>
+  </div>
+  <div class="sync-pill"><span class="sync-dot" id="syncDot"></span><span id="syncLabel">Synced</span></div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+    <span>Dashboard</span><span class="my">ခြုံငုံသုံးသပ်ချက်</span>
+  </button>
+  <button class="tab-btn" data-tab="log">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
+    <span>Hibernation</span><span class="my">ဆောင်းခို</span>
+  </button>
+  <button class="tab-btn" data-tab="reports">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9z"/><path d="M9 3v6h6M9 13h6M9 17h6"/></svg>
+    <span>Reports</span><span class="my">အစီရင်ခံစာ</span>
+  </button>
+</div>
+
+<main>
+  <!-- ===================== DASHBOARD ===================== -->
+  <section id="tab-dashboard" class="tabpanel active">
+    <div class="stat-grid" id="statGrid"></div>
+    <div class="card">
+      <div class="section-title">By Species <span class="my">မျိုးစိတ်အလိုက်</span></div>
+      <div id="speciesBreakdown"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">📅 Upcoming Hibernations <span class="my">လာမည့် ဆောင်းခို</span></div>
+      <div id="upcomingList"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">🕐 Currently Hibernating <span class="my">လက်ရှိ ဆောင်းခိုနေသည်</span></div>
+      <div id="ongoingList"></div>
+    </div>
+  </section>
+
+  <!-- ===================== LOG ===================== -->
+  <section id="tab-log" class="tabpanel">
+    <div class="species-tabs" id="speciesTabs"></div>
+    <div class="filter-chips" id="logFilters"></div>
+    <div id="entryList"></div>
+  </section>
+
+  <!-- ===================== REPORTS ===================== -->
+  <section id="tab-reports" class="tabpanel">
+    <div class="filter-chips" id="reportSpeciesFilter"></div>
+    <div class="card">
+      <div class="section-title">📊 Summary <span class="my">အနှစ်ချုပ်</span></div>
+      <div id="reportStats" class="stat-grid"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">By Morph <span class="my">မျိုးရိုးအလိုက်</span></div>
+      <div id="reportByMorph"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">All Entries <span class="my">မှတ်တမ်းအားလုံး</span></div>
+      <div id="reportAllEntries"></div>
+    </div>
+    <button class="btn btn-secondary btn-block" onclick="copyReport()">📋 Copy Full Report <span class="my">ကူးယူမည်</span></button>
+  </section>
+</main>
+
+<button class="btn btn-primary" id="fabBtn" style="position:fixed; right:16px; bottom:20px; z-index:40; width:54px; height:54px; border-radius:50%; font-size:26px; box-shadow:0 4px 12px rgba(24,119,242,.4); display:none;">+</button>
+
+<div id="toast"></div>
+<div id="modalRoot"></div>
+
+<script>
+/* =========================================================================
+   CONFIG — paste your Apps Script /exec URL below after deploying Code.gs
+   ========================================================================= */
+const CONFIG = {
+  APPS_SCRIPT_URL: 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE',
+  POLL_MS: 20000
+};
+
+/* =========================================================================
+   SPECIES + MORPH OPTIONS
+   ========================================================================= */
+const SPECIES_INFO = {
+  BD:    { en:'Bearded Dragon (BD)', my:'Bearded Dragon', short:'BD' },
+  BTS:   { en:'Northern Blue Tongue (BTS)', my:'Blue Tongue Skink', short:'BTS' },
+  BWT:   { en:'Black & White Tegu (BWT)', my:'Black & White Tegu', short:'BWT' },
+  RT:    { en:'Red Tegu (RT)', my:'Red Tegu', short:'RT' },
+  OTHER: { en:'Other / Custom Species', my:'အခြား မျိုးစိတ်', short:'Other' }
+};
+// Shows a custom-typed species name (for the "Other" tab) wherever a
+// species is displayed, falling back to the normal label otherwise.
+function speciesLabelShort(e){
+  if(e.species==='OTHER' && e.customSpeciesName) return e.customSpeciesName;
+  return SPECIES_INFO[e.species] ? SPECIES_INFO[e.species].short : e.species;
+}
+function speciesLabelFull(e){
+  if(e.species==='OTHER' && e.customSpeciesName) return e.customSpeciesName;
+  return SPECIES_INFO[e.species] ? SPECIES_INFO[e.species].en : e.species;
+}
+
+// Bearded Dragon reuses the same organized morph taxonomy as the other SRR
+// apps (White Tub Tracker / Inventory), so naming stays consistent everywhere.
+const BD_COLOR_GROUPS = [
+  { label:'HET', colors:['HET ALBINO','HET DARK RED','HET ZERO','HET TRANS','HET WITBLIT','HET THUNDERBOLT'] },
+  { label:'POSS HET', colors:['POSS HET ZERO ALBINO','POSS HET WITBLIT ALBINO','POSS HET ALBINO'] },
+  { label:'Base Morphs', colors:['FANCY','RED','BLUE BAR','LEATHERBACK','DUNNER','GENETIC STRIPE','TRANS','YELLOW','SNOW','SN (PASTEL)'] },
+  { label:'Pure Morphs', colors:['ALBINO','DARK RED','ZERO','WITBLIT','THUNDERBOLT','MARBLE','UC'] },
+  { label:'Special', colors:['GHOST YELLOW (G/Y)','GHOST ORANGE (G/O)','SUPER BLUE (SB)','PHANTOM RED (PR)','CLOWN (CL)','FLAME (FL)','MAGMA (M)','CORAL (C)','PARADOX (PARA)','HET PARADOX (HP)'] }
+];
+// Northern Blue Tongue (BTS) morphs, from the SRR hibernation sheet's own reference tab
+const BTS_MORPHS = ['NORMAL','FANCY','ORANGE','BLACK SIDES','WHITE SPECS','RED','WHITE HYPO','YELLOW','ANERY'];
+// No confirmed morph list on file yet for the tegu species — free text with common suggestions
+const TEGU_MORPH_SUGGESTIONS = ['NORMAL','HYPO','ALBINO','BLUE','EXTREME'];
+const OTHER_MORPH_SENTINEL = '__OTHER__';
+
+function isKnownMorph(species, value){
+  if(species==='BD') return BD_COLOR_GROUPS.some(g=>g.colors.includes(value));
+  if(species==='BTS') return BTS_MORPHS.includes(value);
+  return true;
+}
+// BD and BTS use dropdowns, but every dropdown gets an "Other (type below)"
+// option so staff aren't stuck if the actual morph isn't in the list yet.
+function morphFieldHtml(species, value){
+  if(species === 'OTHER'){
+    return `<input type="text" id="f_morph" value="${esc(value||'')}" placeholder="Type morph / color">`;
+  }
+  if(species === 'BD' || species === 'BTS'){
+    const isCustom = !!value && !isKnownMorph(species, value);
+    let h = `<select id="f_morph" onchange="toggleMorphOther()"><option value="">-- select morph --</option>`;
+    if(species === 'BD'){
+      BD_COLOR_GROUPS.forEach(g=>{
+        h += `<optgroup label="${esc(g.label)}">`;
+        g.colors.forEach(c=>{ h += `<option value="${esc(c)}" ${c===value?'selected':''}>${esc(c)}</option>`; });
+        h += `</optgroup>`;
+      });
+    } else {
+      BTS_MORPHS.forEach(c=>{ h += `<option value="${esc(c)}" ${c===value?'selected':''}>${esc(c)}</option>`; });
+    }
+    h += `<option value="${OTHER_MORPH_SENTINEL}" ${isCustom?'selected':''}>Other (type below) / အခြား</option>`;
+    h += `</select>`;
+    h += `<input type="text" id="f_morphOther" placeholder="Type custom morph" value="${isCustom?esc(value):''}" style="margin-top:8px;${isCustom?'':' display:none'}">`;
+    return h;
+  }
+  // Tegus: free text with datalist suggestions
+  const opts = TEGU_MORPH_SUGGESTIONS.map(g=>`<option value="${esc(g)}">`).join('');
+  return `<input type="text" id="f_morph" list="teguMorphOptions" value="${esc(value||'')}" placeholder="e.g. Normal, Hypo">
+    <datalist id="teguMorphOptions">${opts}</datalist>`;
+}
+function toggleMorphOther(){
+  const sel = document.getElementById('f_morph');
+  const other = document.getElementById('f_morphOther');
+  if(!sel || !other) return;
+  other.style.display = sel.value === OTHER_MORPH_SENTINEL ? '' : 'none';
+}
+
+/* =========================================================================
+   STATE
+   ========================================================================= */
+let entries = [];
+let lastModified = 0;
+let activeTab = 'dashboard';
+let currentSpecies = 'BD';
+let logFilter = 'all';
+let reportSpecies = 'all';
+let tombstones = new Set();
+
+const LS = { e:'hib_entries_v1', lm:'hib_lastmod_v1', tomb:'hib_tombstones_v1' };
+
+/* =========================================================================
+   HELPERS
+   ========================================================================= */
+function uid(prefix){ return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function esc(s){ return (s===undefined||s===null)?'':String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(window._toastTimer); window._toastTimer=setTimeout(()=>t.classList.remove('show'),2200);
+}
+function parseDateStr(s){ if(!s) return null; const d = new Date(s+'T00:00:00'); return isNaN(d.getTime()) ? null : d; }
+function fmtDate(s){
+  const d = parseDateStr(s);
+  if(!d) return '—';
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+// Converts a date-in/date-out pair into weeks+days. If dateOut is blank,
+// treats hibernation as still ongoing and measures up to today.
+function computeDuration(dateIn, dateOut){
+  const start = parseDateStr(dateIn);
+  if(!start) return null;
+  const ongoing = !dateOut;
+  const end = ongoing ? new Date(new Date().toDateString()) : parseDateStr(dateOut);
+  if(!end) return null;
+  const days = Math.round((end - start) / 86400000);
+  if(days < 0) return { weeks:0, days:0, totalDays:days, ongoing, negative:true };
+  return { weeks: Math.floor(days/7), days: days%7, totalDays: days, ongoing, negative:false };
+}
+function durationLabel(dur){
+  if(!dur) return '—';
+  if(dur.negative) return 'Not started yet';
+  const wk = dur.weeks===1 ? '1 week' : `${dur.weeks} weeks`;
+  const dy = dur.days===1 ? '1 day' : `${dur.days} days`;
+  const base = dur.days>0 ? `${wk}, ${dy}` : wk;
+  return dur.ongoing ? `${base} (ongoing)` : `${base} (completed)`;
+}
+// Fasting is short enough that plain day-count reads better than weeks+days
+function fastingDurationLabel(dur){
+  if(!dur) return '—';
+  if(dur.negative) return 'Not started yet';
+  const base = dur.totalDays===1 ? '1 day' : `${dur.totalDays} days`;
+  return dur.ongoing ? `${base} (ongoing)` : `${base} (completed)`;
+}
+
+/* =========================================================================
+   LOCAL STORAGE
+   ========================================================================= */
+function loadLocal(){
+  try{ entries = JSON.parse(localStorage.getItem(LS.e) || '[]'); }catch(e){ entries=[]; }
+  lastModified = Number(localStorage.getItem(LS.lm) || 0);
+  try{ tombstones = new Set(JSON.parse(localStorage.getItem(LS.tomb) || '[]')); }catch(e){ tombstones = new Set(); }
+}
+function saveLocal(){
+  localStorage.setItem(LS.e, JSON.stringify(entries));
+  localStorage.setItem(LS.lm, String(lastModified));
+  localStorage.setItem(LS.tomb, JSON.stringify([...tombstones]));
+}
+
+/* =========================================================================
+   SYNC
+   ========================================================================= */
+async function syncFromServer(silent){
+  if(!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL.indexOf('PASTE_YOUR') === 0){
+    setSyncStatus('offline','Not connected'); return;
+  }
+  setSyncStatus('syncing','Syncing...');
+  try{
+    const res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=list&t=${Date.now()}`);
+    const data = await res.json();
+    if(Array.isArray(data.entries)) entries = reconcileMerge(entries, data.entries);
+    if(data.lastModified) lastModified = data.lastModified;
+    saveLocal();
+    retryUnsynced();
+    setSyncStatus('online','Synced');
+    renderAll();
+  }catch(e){
+    setSyncStatus('offline','Offline');
+    if(!silent) toast('Could not reach server — working offline');
+  }
+}
+function reconcileMerge(localArr, serverArr){
+  const serverMap = new Map();
+  const result = [];
+  serverArr.forEach(item=>{
+    if(tombstones.has(item.id)) return;
+    serverMap.set(item.id, item);
+    result.push(item);
+  });
+  localArr.forEach(item=>{
+    if(tombstones.has(item.id)) return;
+    const onServer = serverMap.get(item.id);
+    if(!onServer){
+      if(item.synced === false) result.push(item);
+    } else if((item.updatedAt||0) > (onServer.updatedAt||0)){
+      const idx = result.findIndex(r=>r.id===item.id);
+      if(idx>=0) result[idx] = item; else result.push(item);
+    }
+  });
+  return result;
+}
+function retryUnsynced(){
+  entries.filter(e=>e.synced===false).forEach(e=>{
+    pushToServer('saveEntry', e).then(ok=>{ if(ok){ e.synced=true; saveLocal(); } });
+  });
+}
+function setSyncStatus(state, label){
+  const dot=document.getElementById('syncDot'), lbl=document.getElementById('syncLabel');
+  dot.className = 'sync-dot' + (state==='syncing'?' syncing':state==='offline'?' offline':'');
+  lbl.textContent = label;
+}
+async function pushToServer(action, payload){
+  if(!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL.indexOf('PASTE_YOUR') === 0) return false;
+  try{
+    setSyncStatus('syncing','Saving...');
+    const url = `${CONFIG.APPS_SCRIPT_URL}?action=${action}&payload=${encodeURIComponent(JSON.stringify(payload))}`;
+    await fetch(url);
+    setSyncStatus('online','Synced');
+    return true;
+  }catch(e){
+    setSyncStatus('offline','Offline (saved locally)');
+    return false;
+  }
+}
+
+/* =========================================================================
+   CRUD
+   ========================================================================= */
+function upsertEntry(e){
+  e.updatedAt = Date.now();
+  if(e.synced === undefined) e.synced = false;
+  const idx = entries.findIndex(x=>x.id===e.id);
+  if(idx>=0) entries[idx]=e; else entries.push(e);
+  saveLocal();
+  pushToServer('saveEntry', e).then(ok=>{ if(ok){ e.synced = true; saveLocal(); } });
+  renderAll();
+}
+function deleteEntry(id){
+  tombstones.add(id);
+  entries = entries.filter(e=>e.id!==id);
+  saveLocal();
+  pushToServer('deleteEntry', {id});
+  renderAll();
+}
+
+/* =========================================================================
+   RENDER — DASHBOARD
+   ========================================================================= */
+function renderDashboard(){
+  const totalAnimals = entries.reduce((s,e)=>s+(Number(e.males)||0)+(Number(e.females)||0),0);
+  const ongoingEntries = entries.filter(e=>{
+    const m = computeDuration(e.maleDateIn, e.maleDateOut);
+    const f = computeDuration(e.femaleDateIn, e.femaleDateOut);
+    return (m && m.ongoing && !m.negative) || (f && f.ongoing && !f.negative);
+  });
+  const ongoingAnimals = ongoingEntries.reduce((s,e)=>s+(Number(e.males)||0)+(Number(e.females)||0),0);
+  const speciesCount = new Set(entries.map(e=>e.species)).size;
+
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat-card"><div class="num">${totalAnimals}</div><div class="lbl">Total Animals Logged<span class="my">စုစုပေါင်း</span></div></div>
+    <div class="stat-card"><div class="num">${ongoingAnimals}</div><div class="lbl">Currently Hibernating<span class="my">လက်ရှိ ဆောင်းခို</span></div></div>
+    <div class="stat-card"><div class="num">${entries.length}</div><div class="lbl">Total Entries<span class="my">မှတ်တမ်းအရေအတွက်</span></div></div>
+    <div class="stat-card"><div class="num">${speciesCount}/4</div><div class="lbl">Species Active<span class="my">မျိုးစိတ်</span></div></div>
+  `;
+
+  document.getElementById('speciesBreakdown').innerHTML = Object.keys(SPECIES_INFO).map(sp=>{
+    const list = entries.filter(e=>e.species===sp);
+    const animals = list.reduce((s,e)=>s+(Number(e.males)||0)+(Number(e.females)||0),0);
+    return `<div class="report-row"><span class="rg">${SPECIES_INFO[sp].en}</span><span class="rd">${animals} animals · ${list.length} entries</span></div>`;
+  }).join('');
+
+  const ongoingRows = [];
+  ongoingEntries.forEach(e=>{
+    const m = computeDuration(e.maleDateIn, e.maleDateOut);
+    const f = computeDuration(e.femaleDateIn, e.femaleDateOut);
+    if(m && m.ongoing && !m.negative && e.males>0) ongoingRows.push({e, sex:'Males', dur:m, count:e.males});
+    if(f && f.ongoing && !f.negative && e.females>0) ongoingRows.push({e, sex:'Females', dur:f, count:f && e.females});
+  });
+  ongoingRows.sort((a,b)=>(b.dur.totalDays||0)-(a.dur.totalDays||0));
+  document.getElementById('ongoingList').innerHTML = ongoingRows.length ? ongoingRows.map(r=>`
+    <div class="report-row">
+      <span class="rg">${speciesLabelShort(r.e)} — ${esc(r.e.morph)||'—'} (${r.sex}, ×${r.count})</span>
+      <span class="rd">${durationLabel(r.dur)}</span>
+    </div>
+  `).join('') : `<div class="empty-state">No animals currently hibernating</div>`;
+
+  // Upcoming = earliest of fasting-start / male-date-in / female-date-in
+  // that's still in the future, so a group planned weeks out shows up here
+  // well before its hibernation actually begins.
+  const today = new Date(new Date().toDateString());
+  const upcoming = [];
+  entries.forEach(e=>{
+    const candidates = [e.fastingStart, e.maleDateIn, e.femaleDateIn]
+      .map(parseDateStr)
+      .filter(d=>d && d > today);
+    if(!candidates.length) return;
+    const soonest = candidates.reduce((a,b)=>a<b?a:b);
+    const daysUntil = Math.round((soonest - today) / 86400000);
+    upcoming.push({ e, soonest, daysUntil });
+  });
+  upcoming.sort((a,b)=>a.soonest-b.soonest);
+  document.getElementById('upcomingList').innerHTML = upcoming.length ? upcoming.map(u=>`
+    <div class="report-row">
+      <span class="rg">${speciesLabelShort(u.e)} — Group #${esc(u.e.groupNum)||'—'} (${esc(u.e.morph)||'—'})</span>
+      <span class="rd">${u.daysUntil===0?'Today':u.daysUntil===1?'Tomorrow':`in ${u.daysUntil} days`} · ${fmtDate(toLocalISOFromDate(u.soonest))}</span>
+    </div>
+  `).join('') : `<div class="empty-state">Nothing scheduled yet</div>`;
+}
+function toLocalISOFromDate(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+/* =========================================================================
+   RENDER — LOG (by species)
+   ========================================================================= */
+function renderSpeciesTabs(){
+  document.getElementById('speciesTabs').innerHTML = Object.keys(SPECIES_INFO).map(sp=>`
+    <button class="species-tab ${currentSpecies===sp?'active':''}" onclick="setSpecies('${sp}')">${SPECIES_INFO[sp].short}</button>
+  `).join('');
+}
+function setSpecies(sp){ currentSpecies = sp; renderSpeciesTabs(); renderLogFilters(); renderEntryList(); }
+function renderLogFilters(){
+  const filters = [{k:'all',l:'All'},{k:'ongoing',l:'Ongoing'},{k:'completed',l:'Completed'}];
+  document.getElementById('logFilters').innerHTML = filters.map(f=>
+    `<button class="filter-chip ${logFilter===f.k?'active':''}" onclick="setLogFilter('${f.k}')">${f.l}</button>`
+  ).join('');
+}
+function setLogFilter(k){ logFilter=k; renderEntryList(); renderLogFilters(); }
+function entryStatus(e){
+  const m = computeDuration(e.maleDateIn, e.maleDateOut);
+  const f = computeDuration(e.femaleDateIn, e.femaleDateOut);
+  const anyOngoing = (m && m.ongoing && !m.negative) || (f && f.ongoing && !f.negative);
+  const anyDone = (m && !m.ongoing && !m.negative) || (f && !f.ongoing && !f.negative);
+  const anySet = m || f;
+  if(!anySet) return {cls:'none', label:'No dates yet'};
+  if(anyOngoing) return {cls:'ongoing', label:'Ongoing'};
+  if(anyDone) return {cls:'done', label:'Completed'};
+  return {cls:'none', label:'No dates yet'};
+}
+function renderEntryList(){
+  let list = entries.filter(e=>e.species===currentSpecies);
+  if(logFilter!=='all') list = list.filter(e=>entryStatus(e).cls===(logFilter==='ongoing'?'ongoing':'done'));
+  list = list.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+
+  document.getElementById('entryList').innerHTML = list.length ? list.map(e=>{
+    const status = entryStatus(e);
+    const m = computeDuration(e.maleDateIn, e.maleDateOut);
+    const f = computeDuration(e.femaleDateIn, e.femaleDateOut);
+    const fast = computeDuration(e.fastingStart, e.fastingEnd);
+    return `
+      <div class="list-item" onclick="openEntryDetail('${e.id}')">
+        <div class="li-top">
+          <div>
+            <div class="li-title">Group #${esc(e.groupNum)||'—'} — ${esc(e.morph)||'—'}</div>
+            <div class="li-sub">Fasting: ${fast?fastingDurationLabel(fast):(e.fastingStart?fmtDate(e.fastingStart)+' – …':'—')}</div>
+          </div>
+          <span class="badge ${status.cls}">${status.label}</span>
+        </div>
+        <div class="li-meta">
+          ${e.males?`<span class="chip male">♂ ${e.males}${m?' · '+durationLabel(m):''}</span>`:''}
+          ${e.females?`<span class="chip female">♀ ${e.females}${f?' · '+durationLabel(f):''}</span>`:''}
+        </div>
+      </div>`;
+  }).join('') : `<div class="empty-state">No hibernation entries yet for ${SPECIES_INFO[currentSpecies].short}. Tap + to add one.</div>`;
+}
+
+/* =========================================================================
+   MODAL — ENTRY DETAIL / EDIT / ADD
+   ========================================================================= */
+function openEntryDetail(id){
+  openEntryForm(currentSpecies, id);
+}
+function openEntryForm(species, entryId){
+  const existing = entryId ? entries.find(e=>e.id===entryId) : null;
+  const isEdit = !!existing;
+  const e = existing || { species, customSpeciesName:'', groupNum:'', morph:'', males:'', females:'',
+    fastingStart:'', fastingEnd:'', dewormStart:'', dewormEnd:'',
+    maleDateIn:'', maleDateOut:'', femaleDateIn:'', femaleDateOut:'', notes:'' };
+  const root = document.getElementById('modalRoot');
+  const groupOptions = [1,2,3,4,5,6].map(n=>`<option value="${n}" ${String(e.groupNum)===String(n)?'selected':''}>Group #${n}</option>`).join('');
+
+  const fastDur = isEdit ? computeDuration(e.fastingStart, e.fastingEnd) : null;
+  const dewormDur = isEdit ? computeDuration(e.dewormStart, e.dewormEnd) : null;
+  const mDur = isEdit ? computeDuration(e.maleDateIn, e.maleDateOut) : null;
+  const fDur = isEdit ? computeDuration(e.femaleDateIn, e.femaleDateOut) : null;
+
+  root.innerHTML = `
+  <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
+    <div class="modal">
+      <div class="modal-head">
+        <div><h3>${isEdit?'Edit':'Add'} Hibernation Entry</h3><div class="my">${SPECIES_INFO[species].en}</div></div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          ${species==='OTHER' ? `
+          <div class="full">
+            <label>Species Name <span class="my">မျိုးစိတ်အမည်</span></label>
+            <input type="text" id="f_customSpecies" value="${esc(e.customSpeciesName||'')}" placeholder="Type the species name">
+          </div>` : ''}
+          <div class="full">
+            <label>Group # <span class="my">အုပ်စု</span></label>
+            <select id="f_groupNum"><option value="">-- select --</option>${groupOptions}</select>
+          </div>
+          <div class="full">
+            <label>Morph <span class="my">မျိုးရိုး</span></label>
+            ${morphFieldHtml(species, e.morph)}
+          </div>
+          <div>
+            <label>How Many Males <span class="my">အထီး</span></label>
+            <input type="number" id="f_males" min="0" value="${esc(e.males)}">
+          </div>
+          <div>
+            <label>How Many Females <span class="my">အမ</span></label>
+            <input type="number" id="f_females" min="0" value="${esc(e.females)}">
+          </div>
+        </div>
+
+        <fieldset>
+          <legend>🍽️ Fasting <span class="my">အစာရှောင်ခြင်း</span></legend>
+          <div class="form-grid">
+            <div><label>Fasting Start Date <span class="my">စတင်ရက်</span></label><input type="date" id="f_fastStart" value="${esc(e.fastingStart)}"></div>
+            <div><label>Fasting End Date <span class="my">ပြီးဆုံးရက်</span></label><input type="date" id="f_fastEnd" value="${esc(e.fastingEnd)}"><div class="hint">Leave blank if still fasting</div></div>
+          </div>
+          ${fastDur ? `<div class="weeks-box"><div class="wb-row"><span>Duration</span><span class="wb-num">${fastingDurationLabel(fastDur)}</span></div></div>` : ''}
+        </fieldset>
+
+        <fieldset>
+          <legend>💊 Deworm Treatment <span class="my">သန်ခွာဆေးကုသမှု</span></legend>
+          <div class="form-grid">
+            <div><label>Deworm Start Date <span class="my">စတင်ရက်</span></label><input type="date" id="f_dewormStart" value="${esc(e.dewormStart)}"></div>
+            <div><label>Deworm End Date <span class="my">ပြီးဆုံးရက်</span></label><input type="date" id="f_dewormEnd" value="${esc(e.dewormEnd)}"><div class="hint">Leave blank if still ongoing</div></div>
+          </div>
+          ${dewormDur ? `<div class="weeks-box"><div class="wb-row"><span>Duration</span><span class="wb-num">${fastingDurationLabel(dewormDur)}</span></div></div>` : ''}
+        </fieldset>
+
+        <fieldset>
+          <legend>♂ Male Dates <span class="my">အထီး</span></legend>
+          <div class="form-grid">
+            <div><label>Date In <span class="my">ဝင်ရက်</span></label><input type="date" id="f_maleIn" value="${esc(e.maleDateIn)}"></div>
+            <div><label>Date Out <span class="my">ထွက်ရက်</span></label><input type="date" id="f_maleOut" value="${esc(e.maleDateOut)}"><div class="hint">Leave blank if still hibernating</div></div>
+          </div>
+          ${mDur ? `<div class="weeks-box"><div class="wb-row"><span>Duration</span><span class="wb-num">${durationLabel(mDur)}</span></div></div>` : ''}
+        </fieldset>
+
+        <fieldset>
+          <legend>♀ Female Dates <span class="my">အမ</span></legend>
+          <div class="form-grid">
+            <div><label>Date In <span class="my">ဝင်ရက်</span></label><input type="date" id="f_femaleIn" value="${esc(e.femaleDateIn)}"></div>
+            <div><label>Date Out <span class="my">ထွက်ရက်</span></label><input type="date" id="f_femaleOut" value="${esc(e.femaleDateOut)}"><div class="hint">Leave blank if still hibernating</div></div>
+          </div>
+          ${fDur ? `<div class="weeks-box"><div class="wb-row"><span>Duration</span><span class="wb-num">${durationLabel(fDur)}</span></div></div>` : ''}
+        </fieldset>
+
+        <label>Notes (optional) <span class="my">မှတ်ချက်</span></label>
+        <textarea id="f_notes" rows="2">${esc(e.notes)}</textarea>
+      </div>
+      <div class="modal-foot">
+        ${isEdit?`<button class="btn btn-danger" onclick="confirmDeleteEntry('${e.id}')">Delete</button>`:''}
+        <button class="btn btn-secondary" style="flex:1" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" onclick="submitEntry('${species}'${isEdit?`,'${e.id}'`:''})">${isEdit?'Save Changes':'Save Entry'}</button>
+      </div>
+    </div>
+  </div>`;
+
+  // live-update the duration boxes as dates change, without needing to save first
+  ['f_fastStart','f_fastEnd'].forEach(id=>document.getElementById(id).addEventListener('change', ()=>refreshDurationPreview('fast')));
+  ['f_dewormStart','f_dewormEnd'].forEach(id=>document.getElementById(id).addEventListener('change', ()=>refreshDurationPreview('deworm')));
+  ['f_maleIn','f_maleOut'].forEach(id=>document.getElementById(id).addEventListener('change', ()=>refreshDurationPreview('male')));
+  ['f_femaleIn','f_femaleOut'].forEach(id=>document.getElementById(id).addEventListener('change', ()=>refreshDurationPreview('female')));
+}
+function refreshDurationPreview(which){
+  const ids = {
+    fast:['f_fastStart','f_fastEnd'], deworm:['f_dewormStart','f_dewormEnd'],
+    male:['f_maleIn','f_maleOut'], female:['f_femaleIn','f_femaleOut']
+  }[which];
+  const inVal = document.getElementById(ids[0]).value;
+  const outVal = document.getElementById(ids[1]).value;
+  const dur = computeDuration(inVal, outVal);
+  const fieldset = document.getElementById(ids[0]).closest('fieldset');
+  let box = fieldset.querySelector('.weeks-box');
+  if(!dur){ if(box) box.remove(); return; }
+  const label = (which==='fast'||which==='deworm') ? fastingDurationLabel(dur) : durationLabel(dur);
+  const html = `<div class="wb-row"><span>Duration</span><span class="wb-num">${label}</span></div>`;
+  if(box) box.innerHTML = html;
+  else { box = document.createElement('div'); box.className='weeks-box'; box.innerHTML = html; fieldset.appendChild(box); }
+}
+function submitEntry(species, entryId){
+  const val = k=>document.getElementById(k)?.value?.trim() || '';
+  const existing = entryId ? entries.find(x=>x.id===entryId) : null;
+
+  // BD/BTS dropdowns can be swapped for a free-typed morph via the
+  // "Other (type below)" option
+  let morphVal = val('f_morph');
+  if((species==='BD' || species==='BTS') && morphVal === OTHER_MORPH_SENTINEL){
+    morphVal = val('f_morphOther');
+  }
+
+  const customSpeciesName = species==='OTHER' ? val('f_customSpecies') : '';
+  if(species==='OTHER' && !customSpeciesName){ toast('Enter the species name'); return; }
+
+  const e = {
+    id: entryId || uid('hib'), species, customSpeciesName,
+    groupNum: val('f_groupNum'), morph: morphVal,
+    males: Number(val('f_males'))||0, females: Number(val('f_females'))||0,
+    fastingStart: val('f_fastStart'), fastingEnd: val('f_fastEnd'),
+    dewormStart: val('f_dewormStart'), dewormEnd: val('f_dewormEnd'),
+    maleDateIn: val('f_maleIn'), maleDateOut: val('f_maleOut'),
+    femaleDateIn: val('f_femaleIn'), femaleDateOut: val('f_femaleOut'),
+    notes: val('f_notes')
+  };
+  if(!e.groupNum && !e.morph && !e.males && !e.females){ toast('Enter at least a group, morph, or count'); return; }
+  upsertEntry(e);
+  toast(entryId ? 'Entry updated' : 'Entry saved');
+  closeModal();
+}
+function confirmDeleteEntry(id){
+  if(confirm('Delete this hibernation entry?')){
+    deleteEntry(id);
+    closeModal();
+    toast('Entry deleted');
+  }
+}
+function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+
+/* =========================================================================
+   RENDER — REPORTS
+   ========================================================================= */
+function renderReportSpeciesFilter(){
+  const opts = [{k:'all',l:'All Species'}, ...Object.keys(SPECIES_INFO).map(s=>({k:s,l:SPECIES_INFO[s].short}))];
+  document.getElementById('reportSpeciesFilter').innerHTML = opts.map(o=>
+    `<button class="filter-chip ${reportSpecies===o.k?'active':''}" onclick="setReportSpecies('${o.k}')">${o.l}</button>`
+  ).join('');
+}
+function setReportSpecies(k){ reportSpecies=k; renderReports(); renderReportSpeciesFilter(); }
+function renderReports(){
+  const list = reportSpecies==='all' ? entries : entries.filter(e=>e.species===reportSpecies);
+  const totalAnimals = list.reduce((s,e)=>s+(Number(e.males)||0)+(Number(e.females)||0),0);
+  const ongoing = list.filter(e=>entryStatus(e).cls==='ongoing').length;
+  const completed = list.filter(e=>entryStatus(e).cls==='done').length;
+
+  document.getElementById('reportStats').innerHTML = `
+    <div class="stat-card"><div class="num">${totalAnimals}</div><div class="lbl">Total Animals</div></div>
+    <div class="stat-card"><div class="num">${list.length}</div><div class="lbl">Entries</div></div>
+    <div class="stat-card"><div class="num">${ongoing}</div><div class="lbl">Ongoing</div></div>
+    <div class="stat-card"><div class="num">${completed}</div><div class="lbl">Completed</div></div>
+  `;
+
+  const byMorph = {};
+  list.forEach(e=>{
+    const k = e.morph || '(none)';
+    byMorph[k] = (byMorph[k]||0) + (Number(e.males)||0) + (Number(e.females)||0);
+  });
+  const morphKeys = Object.keys(byMorph).sort((a,b)=>byMorph[b]-byMorph[a]);
+  document.getElementById('reportByMorph').innerHTML = morphKeys.length ? morphKeys.map(k=>
+    `<div class="report-row"><span class="rg">${esc(k)}</span><span class="rd">${byMorph[k]}</span></div>`
+  ).join('') : `<div class="empty-state">No data</div>`;
+
+  const sorted = [...list].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  document.getElementById('reportAllEntries').innerHTML = sorted.length ? sorted.map(e=>{
+    const m = computeDuration(e.maleDateIn, e.maleDateOut);
+    const f = computeDuration(e.femaleDateIn, e.femaleDateOut);
+    const parts = [];
+    if(e.males) parts.push(`♂${e.males}${m?' ('+durationLabel(m)+')':''}`);
+    if(e.females) parts.push(`♀${e.females}${f?' ('+durationLabel(f)+')':''}`);
+    return `<div class="report-row"><span class="rg">${speciesLabelShort(e)} G#${esc(e.groupNum)} — ${esc(e.morph)||'—'}</span><span class="rd">${parts.join(' · ')}</span></div>`;
+  }).join('') : `<div class="empty-state">No entries yet</div>`;
+
+  window._reportCache = { species: reportSpecies, totalAnimals, entryCount:list.length, ongoing, completed, byMorph, list };
+}
+function copyReport(){
+  const c = window._reportCache;
+  if(!c){ toast('Report not ready'); return; }
+  const label = c.species==='all' ? 'All Species' : SPECIES_INFO[c.species].en;
+  let text = `SRR HIBERNATION REPORT — ${label} — ${todayStr()}\n\n`;
+  text += `Total Animals: ${c.totalAnimals}\nEntries: ${c.entryCount}\nOngoing: ${c.ongoing}\nCompleted: ${c.completed}\n\n`;
+  text += 'By Morph:\n';
+  Object.keys(c.byMorph).sort((a,b)=>c.byMorph[b]-c.byMorph[a]).forEach(k=>{ text += `  ${k}: ${c.byMorph[k]}\n`; });
+  text += '\nAll Entries:\n';
+  c.list.forEach(e=>{
+    const m = computeDuration(e.maleDateIn, e.maleDateOut);
+    const f = computeDuration(e.femaleDateIn, e.femaleDateOut);
+    text += `  ${speciesLabelShort(e)} Group #${e.groupNum} — ${e.morph||'—'}`;
+    if(e.males) text += ` · Males ${e.males}${m?' ('+durationLabel(m)+')':''}`;
+    if(e.females) text += ` · Females ${e.females}${f?' ('+durationLabel(f)+')':''}`;
+    text += '\n';
+  });
+  navigator.clipboard.writeText(text).then(()=>toast('Report copied to clipboard')).catch(()=>toast('Could not copy — select manually'));
+}
+
+/* =========================================================================
+   TABS / FAB
+   ========================================================================= */
+function switchTab(tab){
+  activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.tabpanel').forEach(p=>p.classList.toggle('active', p.id==='tab-'+tab));
+  document.getElementById('fabBtn').style.display = tab==='log' ? 'flex' : 'none';
+  renderAll();
+}
+document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click', ()=>switchTab(btn.dataset.tab)));
+document.getElementById('fabBtn').addEventListener('click', ()=>openEntryForm(currentSpecies, null));
+
+/* =========================================================================
+   RENDER ALL / INIT
+   ========================================================================= */
+function renderAll(){
+  renderDashboard();
+  renderSpeciesTabs(); renderLogFilters(); renderEntryList();
+  renderReportSpeciesFilter(); renderReports();
+}
+function init(){
+  loadLocal();
+  renderAll();
+  switchTab('dashboard');
+  syncFromServer(true);
+  setInterval(()=>syncFromServer(true), CONFIG.POLL_MS);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) syncFromServer(true); });
+  window.addEventListener('focus', ()=>syncFromServer(true));
+  window.addEventListener('online', ()=>syncFromServer(true));
+}
+init();
+</script>
+</body>
+</html>
